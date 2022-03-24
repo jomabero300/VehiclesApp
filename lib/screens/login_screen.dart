@@ -1,5 +1,13 @@
-import 'package:email_validator/email_validator.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:email_validator/email_validator.dart';
+import 'package:http/http.dart' as http;
+
+import 'package:vehicles_app/components/loader_component.dart';
+import 'package:vehicles_app/helpers/constans.dart';
+import 'package:vehicles_app/models/token.dart';
+import 'package:vehicles_app/screens/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -20,23 +28,32 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberme = true;
   bool _passwordShow = false;
 
+  bool _showLoader = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            _showLogo(),
-            const SizedBox(
-              height: 20,
-            ),
-            _showEmail(),
-            _showPassword(),
-            _showRememberme(),
-            _showButtons(),
-          ],
-        ),
+      body: Stack(
+        children: <Widget>[
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              _showLogo(),
+              const SizedBox(
+                height: 20,
+              ),
+              _showEmail(),
+              _showPassword(),
+              _showRememberme(),
+              _showButtons(),
+            ],
+          ),
+          _showLoader
+              ? LoaderComponent(
+                  text: 'por favor espere...',
+                )
+              : Container(),
+        ],
       ),
     );
   }
@@ -158,6 +175,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    setState(() {
+      _showLoader = true;
+    });
+
     Map<String, dynamic> request = {
       'userName': _email,
       'password': _password,
@@ -173,12 +194,34 @@ class _LoginScreenState extends State<LoginScreen> {
       body: jsonEncode(request),
     );
 
-    print('Rspueesta : ${response.body}');
+    setState(() {
+      _showLoader = false;
+    });
+
+    if (response.statusCode >= 400) {
+      setState(() {
+        _passwordShowError = true;
+        _passwordError = "Email o contraseña incorrectos";
+      });
+      return;
+    }
+
+    var body = response.body;
+    var decodedJson = jsonDecode(body);
+    var token = Token.fromJson(decodedJson);
+
+    Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+            builder: (context) => HomeScreen(
+                  token: token,
+                )));
   }
 
   bool _validatefields() {
     bool _hasErrors = true;
-    if (_emailError.isEmpty) {
+
+    if (_email.isEmpty) {
       _hasErrors = false;
       _emailShowError = true;
       _emailError = 'Debes ingresar un email';
