@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: FadeInImage(
               placeholder: const AssetImage('assets/vehicles_logo.png'),
               image: NetworkImage(widget.token.user.imageFullPath),
-              height: 200,
+              height: 300,
               fit: BoxFit.cover,
             ),
           ),
