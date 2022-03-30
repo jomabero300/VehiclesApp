@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:vehicles_app/components/loader_component.dart';
 
 import 'package:vehicles_app/helpers/constans.dart';
@@ -16,7 +19,7 @@ class ProceduresScreen extends StatefulWidget {
 }
 
 class _ProceduresScreenState extends State<ProceduresScreen> {
-  List<Procedure> _procedure = [];
+  List<Procedure> _procedures = [];
   bool _showLoader = false;
 
   @override
@@ -31,9 +34,15 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
       appBar: AppBar(
         title: const Text('Procedimientos'),
       ),
-      body: _showLoader
-          ? LoaderComponent(text: 'por favor espere...')
-          : const Center(child: Text('Procedimientos..')),
+      body: Center(
+        child: _showLoader
+            ? LoaderComponent(text: 'por favor espere...')
+            : _getContent(),
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
+        onPressed: () {},
+      ),
     );
   }
 
@@ -56,6 +65,74 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
       _showLoader = false;
     });
 
-    print(response.body);
+    var body = response.body;
+    var decodedJson = jsonDecode(body);
+
+    if (decodedJson != null) {
+      for (var item in decodedJson) {
+        _procedures.add(Procedure.fromJson(item));
+      }
+    }
+  }
+
+  Widget _getContent() {
+    return _procedures.length == 0 ? _noContent() : _getListView();
+  }
+
+  Widget _noContent() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(20),
+        child: const Text(
+          'no hay procedimientos almacenados',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _getListView() {
+    return ListView(
+      children: _procedures.map((e) {
+        return Card(
+          child: InkWell(
+            onTap: () {},
+            child: Container(
+              margin: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(5),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        e.description,
+                        style: const TextStyle(
+                          fontSize: 16,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios),
+                    ],
+                  ),
+                  const SizedBox(
+                    height: 5,
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        NumberFormat.currency(symbol: '\$').format(e.price),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }
