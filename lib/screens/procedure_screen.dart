@@ -1,5 +1,9 @@
+import 'package:adaptive_dialog/adaptive_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:vehicles_app/components/loader_component.dart';
+import 'package:vehicles_app/helpers/api_helper.dart';
 import 'package:vehicles_app/models/Procedure.dart';
+import 'package:vehicles_app/models/response.dart';
 import 'package:vehicles_app/models/token.dart';
 
 class ProcedureScreen extends StatefulWidget {
@@ -13,6 +17,8 @@ class ProcedureScreen extends StatefulWidget {
 }
 
 class _ProcedureScreenState extends State<ProcedureScreen> {
+  bool _showLoader = false;
+
   String _description = '';
   String _descriptionError = '';
   bool _descriptionShowError = false;
@@ -40,8 +46,17 @@ class _ProcedureScreenState extends State<ProcedureScreen> {
             ? 'Nuevo procedimiento'
             : widget.procedure.description),
       ),
-      body: Column(
-        children: <Widget>[_showDesription(), _showPrice(), _showButtons()],
+      body: Stack(
+        children: [
+          Column(
+            children: <Widget>[_showDesription(), _showPrice(), _showButtons()],
+          ),
+          _showLoader
+              ? LoaderComponent(
+                  text: 'Por favor espere..',
+                )
+              : Container(),
+        ],
       ),
     );
   }
@@ -107,7 +122,7 @@ class _ProcedureScreenState extends State<ProcedureScreen> {
                   },
                 ),
               ),
-              onPressed: () {},
+              onPressed: () => _save(),
             ),
           ),
           widget.procedure.id == 0
@@ -122,11 +137,153 @@ class _ProcedureScreenState extends State<ProcedureScreen> {
                     child: const Text('Borrar'),
                     style: ElevatedButton.styleFrom(
                         primary: const Color(0xFFB4161B)),
-                    onPressed: () {},
+                    onPressed: () => _confirmDelete(),
                   ),
                 ),
         ],
       ),
     );
+  }
+
+  void _save() {
+    if (!_validatefields()) {
+      return;
+    }
+
+    widget.procedure.id == 0 ? _addRecord() : _updateRecord();
+  }
+
+  bool _validatefields() {
+    bool _isValid = true;
+
+    if (_description.isEmpty) {
+      _isValid = false;
+      _descriptionShowError = true;
+      _descriptionError = 'Debes ingresar una descripción';
+    } else {
+      _descriptionShowError = false;
+    }
+
+    if (_price.isEmpty) {
+      _isValid = false;
+      _priceShowError = true;
+      _priceError = "Debes ingresar una precio";
+    } else {
+      double price = double.parse(_price);
+      if (price <= 0) {
+        _isValid = false;
+        _priceShowError = true;
+        _priceError = "Debes ingresar un precio mayor a cero.";
+      } else {
+        _priceShowError = false;
+      }
+    }
+
+    setState(() {});
+    return _isValid;
+  }
+
+  _addRecord() async {
+    setState(() {
+      _showLoader = true;
+    });
+
+    Map<String, dynamic> request = {
+      'description': _description,
+      'price': double.parse(_price),
+    };
+
+    Response response =
+        await ApiHelper.post('/api/Procedures/', request, widget.token.token);
+
+    setState(() {
+      _showLoader = false;
+    });
+
+    if (!response.isSuccess) {
+      await showAlertDialog(
+          context: context,
+          title: 'Error',
+          message: response.message,
+          actions: <AlertDialogAction>[
+            const AlertDialogAction(key: null, label: 'Aceptar'),
+          ]);
+      return;
+    }
+
+    Navigator.pop(context, 'yes');
+  }
+
+  _updateRecord() async {
+    setState(() {
+      _showLoader = true;
+    });
+
+    Map<String, dynamic> request = {
+      'id': widget.procedure.id,
+      'description': _description,
+      'price': double.parse(_price),
+    };
+
+    Response response = await ApiHelper.put('/api/Procedures/',
+        widget.procedure.id.toString(), request, widget.token.token);
+
+    setState(() {
+      _showLoader = false;
+    });
+
+    if (!response.isSuccess) {
+      await showAlertDialog(
+          context: context,
+          title: 'Error',
+          message: response.message,
+          actions: <AlertDialogAction>[
+            const AlertDialogAction(key: null, label: 'Aceptar'),
+          ]);
+      return;
+    }
+
+    Navigator.pop(context, 'yes');
+  }
+
+  void _confirmDelete() async {
+    var response = await showAlertDialog(
+        context: context,
+        title: 'Confirmación',
+        message: '¿Estas seguro de querer borrar el registro?',
+        actions: <AlertDialogAction>[
+          const AlertDialogAction(key: 'no', label: 'No'),
+          const AlertDialogAction(key: 'yes', label: 'Sí'),
+        ]);
+
+    if (response == 'yes') {
+      _deleteRecord();
+    }
+  }
+
+  void _deleteRecord() async {
+    setState(() {
+      _showLoader = true;
+    });
+
+    Response response = await ApiHelper.delete(
+        '/api/Procedures/', widget.procedure.id.toString(), widget.token.token);
+
+    setState(() {
+      _showLoader = false;
+    });
+
+    if (!response.isSuccess) {
+      await showAlertDialog(
+          context: context,
+          title: 'Error',
+          message: response.message,
+          actions: <AlertDialogAction>[
+            const AlertDialogAction(key: null, label: 'Aceptar'),
+          ]);
+      return;
+    }
+
+    Navigator.pop(context, 'yes');
   }
 }

@@ -22,6 +22,9 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
   List<Procedure> _procedures = [];
   bool _showLoader = false;
 
+  bool _isFiltered = false;
+  String _search = '';
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +36,13 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Procedimientos'),
+        actions: <Widget>[
+          _isFiltered
+              ? IconButton(
+                  onPressed: _removeFilter, icon: const Icon(Icons.filter_none))
+              : IconButton(
+                  onPressed: _showFilter, icon: const Icon(Icons.filter_alt))
+        ],
       ),
       body: Center(
         child: _showLoader
@@ -41,14 +51,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
-        onPressed: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => ProcedureScreen(
-                      token: widget.token,
-                      procedure: Procedure(description: '', price: 0, id: 0))));
-        },
+        onPressed: () => _goAdd(),
       ),
     );
   }
@@ -78,29 +81,6 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
     setState(() {
       _procedures = response.result;
     });
-
-    // var url = Uri.parse('${Constans.apiUrl}/api/Procedures');
-    // var response = await http.get(
-    //   url,
-    //   headers: {
-    //     'content-type': 'application/json',
-    //     'accept': 'application/json',
-    //     'authorization': 'bearer ${widget.token.token}',
-    //   },
-    // );
-
-    // setState(() {
-    //   _showLoader = false;
-    // });
-
-    // var body = response.body;
-    // var decodedJson = jsonDecode(body);
-
-    // if (decodedJson != null) {
-    //   for (var item in decodedJson) {
-    //     _procedures.add(Procedure.fromJson(item));
-    //   }
-    // }
   }
 
   Widget _getContent() {
@@ -124,13 +104,7 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
       children: _procedures.map((e) {
         return Card(
           child: InkWell(
-            onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) =>
-                          ProcedureScreen(token: widget.token, procedure: e)));
-            },
+            onTap: () => _goEdit(e),
             child: Container(
               margin: const EdgeInsets.all(10),
               padding: const EdgeInsets.all(5),
@@ -168,5 +142,95 @@ class _ProceduresScreenState extends State<ProceduresScreen> {
         );
       }).toList(),
     );
+  }
+
+  void _removeFilter() {
+    setState(() {
+      _isFiltered = false;
+    });
+    _getProcedures();
+  }
+
+  void _showFilter() {
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            title: const Text('Filtrar Procedimientos'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Text('Escriba las primeras letras del procedimiento'),
+                const SizedBox(
+                  height: 10,
+                ),
+                TextField(
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                      hintText: 'Criterio de búsqueda...',
+                      labelText: 'Buscar',
+                      suffixIcon: Icon(Icons.search)),
+                  onChanged: (value) {
+                    _search = value;
+                  },
+                )
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar')),
+              TextButton(
+                  onPressed: () => _filter(), child: const Text('Filtrar')),
+            ],
+          );
+        });
+  }
+
+  void _filter() {
+    if (_search.isEmpty) {
+      return;
+    }
+
+    List<Procedure> filteredList = [];
+
+    for (var procedure in _procedures) {
+      if (procedure.description.toLowerCase().contains(_search.toLowerCase())) {
+        filteredList.add(procedure);
+      }
+    }
+
+    setState(() {
+      _procedures = filteredList;
+      _isFiltered = true;
+    });
+
+    Navigator.of(context).pop();
+  }
+
+  void _goAdd() async {
+    String? result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => ProcedureScreen(
+                token: widget.token,
+                procedure: Procedure(description: '', price: 0, id: 0))));
+    if (result == 'yes') {
+      _getProcedures();
+    }
+  }
+
+  void _goEdit(Procedure e) async {
+    String result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) =>
+                ProcedureScreen(token: widget.token, procedure: e)));
+    if (result == 'yes') {
+      _getProcedures();
+    }
   }
 }
